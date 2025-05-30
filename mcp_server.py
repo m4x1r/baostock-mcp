@@ -1,8 +1,9 @@
 # Main MCP server file
 import logging
+import os
 from datetime import datetime
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # Import the interface and the concrete implementation
 from src.data_source_interface import FinancialDataSource
@@ -31,6 +32,11 @@ active_data_source: FinancialDataSource = BaostockDataSource()
 # --- Get current date for system prompt ---
 current_date = datetime.now().strftime("%Y-%m-%d")
 
+# --- 服务器配置 ---
+# 从环境变量获取配置，如果不存在则使用默认值
+HOST = os.environ.get("MCP_HOST", "0.0.0.0")
+PORT = int(os.environ.get("MCP_PORT", 18000))
+
 # --- FastMCP App Initialization ---
 app = FastMCP(
     server_name="a_share_data_provider",
@@ -58,6 +64,15 @@ register_analysis_tools(app, active_data_source)
 # --- Main Execution Block ---
 if __name__ == "__main__":
     logger.info(
-        f"Starting A-Share MCP Server via stdio... Today is {current_date}")
-    # Run the server using stdio transport, suitable for MCP Hosts like Claude Desktop
-    app.run(transport='stdio')
+        f"启动 A-Share MCP SSE 服务器在 {HOST}:{PORT}... 今天是 {current_date}")
+    # 以 SSE 服务器模式运行，使用 HTTP 传输
+
+    # 设置环境变量，让 FastMCP 使用正确的主机和端口
+    os.environ["MCP_HTTP_HOST"] = HOST
+    os.environ["MCP_HTTP_PORT"] = str(PORT)
+
+    app.run(
+        transport='sse',  # 使用 SSE 传输
+        host=HOST,
+        port=PORT
+    )
